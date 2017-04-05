@@ -1,4 +1,4 @@
-# msbuild-inject-yourcode-to-build-process
+# msbuild-run-yourcode-before-or-after-build
 Run your code before/after build project with Visual Studio.
 
 ## What is this sample.
