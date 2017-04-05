@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://msdn.microsoft.com/en-us/library/dd723643.aspx 
+ JP  https://msdn.microsoft.com/ja-jp/library/dd723643.aspx -->
+
+<!-- 
+Note: To run this sample, you should import this file from another csproj.
+
+<Import Project="$(SolutionDir)\msdn-task-samples.xml" />
+
+-->
+
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- 
+  For convinient, all variable names named in this sample begin with '_'. 
+  '_' is not required. The purpose of '_' is only for easy to understanding.
+  -->
+  
+  <PropertyGroup>
+    <!-- this value will be overwritten by _AdderCaller target. -->
+    <_PropertyForStoreValue>111</_PropertyForStoreValue>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- way for run your target before build. -->
+    <BuildDependsOn Condition=" '$(OS)' == 'Windows_NT'">
+      _HelloCaller;
+      _EchoCaller;
+      _AdderCaller;
+      $(BuildDependsOn);     <!-- need this or other build ( like creating exe or dll ) will skip. -->
+      _WithReferencesCaller; <!-- you can also run task After build -->
+    </BuildDependsOn>
+  </PropertyGroup>
+
+  
+  <!-- You can't call UsingTask directry (or, I don't know how do that), so you need create target that call your task. -->
+
+  
+  <!-- Task "_Hello" and Target that call the Task. -->
+  <Target Name="_HelloCaller">
+    <_Hello />
+  </Target>
+
+  <!-- _Hello task. this behave like `Action`  -->
+  <UsingTask TaskName="_Hello" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll" >
+    <ParameterGroup />
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        // Log.LogMessage("Hello, world!", MessageImportance.High);  // did not work with VS2017.
+        Log.LogMessage(MessageImportance.High, "Hello, world!");
+        Log.LogError("Hello, world!");                               // write log as error, however build will success.
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Task "Echo" and Target that call the Task. -->
+  <Target Name="_EchoCaller">
+    <_Echo _ParamText="This Is Parameter." />
+  </Target>
+
+  <!-- _Echo task. this behave like `Action<string>`  -->
+  <UsingTask TaskName="_Echo" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll" >
+    <ParameterGroup>
+      <_ParamText Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        // Log.LogMessage(_ParamText, MessageImportance.High);  // did not work with VS2017.
+        Log.LogMessage(MessageImportance.High, _ParamText);
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Task "_Adder" and Target that call the Task. -->
+  <Target Name="_AdderCaller">
+    <Message Text="The value of `_PropertyForStoreValue` BEFORE call _Adder is $(_PropertyForStoreValue)" Importance="High" />
+    <_Adder _A="4" _B="5">
+      <Output PropertyName="_PropertyForStoreValue" TaskParameter="_C" />
+    </_Adder>
+    <Message Text="The value of `_PropertyForStoreValue` AFTER  call _Adder is $(_PropertyForStoreValue)" Importance="High" />
+  </Target>
+
+  <!-- _Adder task. this behave like `Func<int, int, int>`  -->
+  <UsingTask TaskName="_Adder" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll" >
+    <ParameterGroup>
+      <_A ParameterType="System.Int32" Required="true" />
+      <_B ParameterType="System.Int32" Required="true" />
+      <_C ParameterType="System.Int32" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        _C = _A + _B;
+      </Code>
+    </Task>
+  </UsingTask>
+
+
+  <!-- Task "_WithReferences" and Target that call the Task. -->
+  <Target Name="_WithReferencesCaller">
+    <PropertyGroup>
+      <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">$(MSBuildProjectDirectory)\..\</SolutionDir>
+    </PropertyGroup>
+    <_WithReferences _Path="$(SolutionDir)">
+      <Output PropertyName="_ResultText" TaskParameter="_Out" />
+    </_WithReferences>
+    <Message Text="The value of `_ResultText` : $(_ResultText)" Importance="High" />
+  </Target>
+
+  <!-- _WithReferences task. This for explain how to use Using and assembly Reference. -->
+  <UsingTask TaskName="_WithReferences" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll" >
+    <ParameterGroup>
+      <_Path ParameterType="System.String" Required="true" />
+      <_Out ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="System.Core" />
+      <Reference Include="System.Xml" />
+      <Reference Include="System.Xml.Linq" />
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Xml.Linq" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+          var el = XElement.Parse("<A><B><C>a</C></B></A>");
+          var valA = el.Descendants("B")
+            .Descendants("C")
+            .FirstOrDefault().Value;
+
+          _Out = "\r\n    value in xml : " + valA + "\r\n    abs path     : " + Path.GetFullPath(_Path);
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+</Project>
